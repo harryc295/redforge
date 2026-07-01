@@ -1,0 +1,3 @@
+# redforge runs on the Python standard library alone — no install required.
+# Providers speak to Ollama, OpenAI-compatible endpoints, and the Anthropic
+# Messages API over urllib. This file is intentionally empty of dependencies.

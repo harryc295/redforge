@@ -1,0 +1,29 @@
+# Drop this into .github/workflows/redteam.yml in a repo that ships an LLM
+# system prompt or agent config. It fails the build if redforge breaks any
+# objective at or above the chosen severity — a red-team gate in CI/CD.
+name: LLM red-team gate
+on: [push, pull_request]
+jobs:
+  redteam:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install redforge  # or: git clone + pip install -e .
+      - name: Scan the target model
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python -m redforge.cli scan \
+            --profile profiles/production.json \
+            --provider anthropic --model claude-sonnet-5 \
+            --fail-on high \
+            --out redteam-report
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redteam-report
+          path: redteam-report/

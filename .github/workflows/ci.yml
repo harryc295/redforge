@@ -1,0 +1,14 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python tests/test_redforge.py
+      # Prove the scanner runs end to end. fail-on critical keeps the demo's
+      # (high/medium) findings from failing our own build.
+      - run: python -m redforge.cli scan --profile profiles/default.json --out results --db "" --fail-on critical
