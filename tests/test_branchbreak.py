@@ -319,6 +319,75 @@ def test_every_objective_maps_to_known_atlas_technique():
         assert atlas.describe(o.atlas)["url"].startswith("https://atlas.mitre.org/")
 
 
+# ---------------------------------- cli -----------------------------------------
+# Every other test calls branchbreak's functions directly. These go through the
+# real argparse entry point (subprocess), because subcommand wiring — does
+# `trend` actually dispatch to _cmd_trend, does a bad profile return exit code
+# 2 — isn't exercised by any of the direct-call tests above.
+
+def _run_cli(*args, cwd=None):
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, "-m", "branchbreak.cli", *args],
+        cwd=cwd or str(Path(__file__).resolve().parent.parent),
+        capture_output=True, text=True, timeout=30)
+    return result.returncode, result.stdout + result.stderr
+
+
+def test_cli_scan_exits_zero_when_gate_passes(tmp_path=None):
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        code, out = _run_cli("scan", "--profile", "profiles/default.json",
+                             "--out", d, "--db", "", "--fail-on", "critical")
+        assert code == 0 and "reports written to" in out
+
+
+def test_cli_scan_exits_nonzero_when_gate_fails(tmp_path=None):
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        code, out = _run_cli("scan", "--profile", "profiles/default.json",
+                             "--out", d, "--db", "", "--fail-on", "high")
+        assert code == 1 and "3 finding(s)" in out
+
+
+def test_cli_validate_exits_nonzero_on_bad_profile(tmp_path=None):
+    import json
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        bad = str(Path(d) / "bad.json")
+        with open(bad, "w", encoding="utf-8") as f:
+            json.dump({"strategies": ["not-real"]}, f)
+        code, out = _run_cli("validate", "--profile", bad)
+        assert code == 1 and "not-real" in out
+
+
+def test_cli_trend_reports_no_history_gracefully(tmp_path=None):
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        code, out = _run_cli("trend", "--db", str(Path(d) / "empty.db"))
+        assert code == 0 and "no scan history" in out
+
+
+def test_cli_export_writes_files_after_a_scan(tmp_path=None):
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        db = str(Path(d) / "t.db")
+        _run_cli("scan", "--profile", "profiles/default.json",
+                 "--out", str(Path(d) / "out"), "--db", db, "--fail-on", "critical")
+        code, out = _run_cli("export", "--db", db, "--out", str(Path(d) / "evidence"))
+        assert code == 0
+        assert (Path(d) / "evidence" / "scans.csv").exists()
+
+
+def test_cli_warns_when_max_queries_overrides_parallel(tmp_path=None):
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        code, out = _run_cli("scan", "--profile", "profiles/default.json",
+                             "--out", d, "--db", "", "--fail-on", "critical",
+                             "--max-queries", "5", "--parallel", "4")
+        assert code == 0 and "ignoring --parallel" in out
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for fn in fns:

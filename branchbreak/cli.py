@@ -32,6 +32,10 @@ def _cmd_scan(args):
             print(f"  - {p}")
         return 2
 
+    if args.max_queries is not None and args.parallel > 1:
+        print(f"note: --max-queries forces sequential execution "
+              f"(ignoring --parallel {args.parallel})")
+
     summary = scan.run_scan(profile, provider=args.provider, model=args.model,
                             max_queries=args.max_queries, parallel=args.parallel)
 
