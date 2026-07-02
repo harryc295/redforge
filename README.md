@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/harryc295/branchbreak/actions/workflows/ci.yml/badge.svg)](https://github.com/harryc295/branchbreak/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Changelog](https://img.shields.io/badge/Changelog-0.2.0-blue.svg)](CHANGELOG.md)
 
 Continuous automated red-teaming for LLMs and AI agents. branchbreak runs an
 *attacker model that adapts* — it discovers jailbreaks by iterative refinement
@@ -87,7 +88,16 @@ for CI — no code change, only the profile.
 
 ## Install
 
-Standard library only. No pip dependencies. Not published on PyPI — clone it.
+Standard library only at runtime, no pip dependencies. Not published on PyPI,
+but it is a real package — install straight from git if you want the
+`branchbreak` console command instead of `python -m branchbreak.cli`:
+
+```
+pip install git+https://github.com/harryc295/branchbreak
+branchbreak scan --profile profiles/default.json --out results
+```
+
+Or just clone it and run the module directly:
 
 ```
 git clone https://github.com/harryc295/branchbreak
@@ -95,12 +105,21 @@ cd branchbreak
 python tests/test_branchbreak.py        # 29 tests, offline
 ```
 
+For development: `pip install -e ".[dev]"` pulls in mypy, ruff, and pytest —
+the same checks CI runs (`mypy branchbreak/`, `ruff check branchbreak/ tests/`).
+
 ## Run a scan
 
 Offline, against the built-in mock target (no model, no key):
 
 ```
 python -m branchbreak.cli scan --profile profiles/default.json --out results
+
+# Crescendo vs PAIR/TAP, made concrete: this profile sets a boundary that a
+# single message can never reach, so PAIR/TAP hold no matter the budget —
+# only Crescendo breaks it, by turn 4, because it accumulates real pressure
+# across a growing conversation instead of starting fresh every attempt.
+python -m branchbreak.cli scan --profile profiles/crescendo.json --out results-crescendo
 ```
 
 Against a real model:

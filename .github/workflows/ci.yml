@@ -8,7 +8,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: pip install mypy ruff
+      - run: python -m mypy branchbreak/
+      - run: python -m ruff check branchbreak/ tests/
       - run: python tests/test_branchbreak.py
       # Prove the scanner runs end to end. fail-on critical keeps the demo's
       # (high/medium) findings from failing our own build.
       - run: python -m branchbreak.cli scan --profile profiles/default.json --out results --db "" --fail-on critical
+      # Second profile: shows Crescendo succeeding where PAIR/TAP structurally
+      # cannot (reveal_threshold set above what a single message can reach).
+      - run: python -m branchbreak.cli scan --profile profiles/crescendo.json --out results-crescendo --db "" --fail-on critical

@@ -21,8 +21,11 @@ def load_profile(path: str) -> dict:
         return json.load(f)
 
 
-def _apply_override(profile: dict, provider: str | None, model: str | None):
-    """--provider/--model rewrite all three roles to one backend (self-red-team)."""
+def apply_provider_override(profile: dict, provider: str | None, model: str | None):
+    """--provider/--model rewrite all three roles to one backend (self-red-team).
+    Public (and idempotent) so the CLI can apply it before validate() runs —
+    otherwise a --provider anthropic override wouldn't be visible to the
+    preflight API-key check, which only sees the profile file's own blocks."""
     if not provider:
         return
     if provider == "ollama":
@@ -53,7 +56,7 @@ def _run_one(obj, strat, params, converter_names, a_spec, t_spec, j_spec):
 
 def run_scan(profile: dict, provider=None, model=None,
              max_queries: int | None = None, parallel: int = 1) -> dict:
-    _apply_override(profile, provider, model)
+    apply_provider_override(profile, provider, model)
     canary = profile.get("canary", "PELICAN-7731")
     objectives = _load_objectives(profile, canary)
     strategies = profile.get("strategies", ["single_shot", "pair", "tap"])

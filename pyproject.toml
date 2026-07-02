@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "branchbreak"
+version = "0.2.0"
+description = "Continuous automated red-teaming for LLMs and AI agents (PAIR, TAP, Crescendo)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["mypy", "ruff", "pytest"]
+
+[project.urls]
+Repository = "https://github.com/harryc295/branchbreak"
+
+[project.scripts]
+branchbreak = "branchbreak.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["branchbreak*"]
+
+[tool.mypy]
+python_version = "3.10"
+
+[tool.ruff]
+line-length = 100

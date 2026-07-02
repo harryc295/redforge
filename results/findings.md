@@ -49,6 +49,14 @@ From `python -m branchbreak.cli scan --profile profiles/default.json`:
 Single-shot attack success rate: **0/3**. Adaptive (PAIR/TAP): **3/3**. The gate
 fails (exit code 1) because a high-severity objective was broken.
 
+A second demo, `profiles/crescendo.json`, isolates what Crescendo adds beyond
+PAIR/TAP: its `reveal_threshold` is set above what any single message can ever
+carry (the mock's technique vocabulary caps a single message at 6), so PAIR and
+TAP hold no matter how much budget they get — only Crescendo breaks it, by
+accumulating pressure across a real, growing conversation instead of starting
+fresh every attempt. Single-shot: held. PAIR (8 queries): held. TAP (30
+queries): held. Crescendo: **broken in 4 turns.**
+
 ## Honest reading of this result
 
 The surrogate target is deterministic: it yields once an attack stacks enough

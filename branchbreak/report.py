@@ -11,7 +11,8 @@ from . import atlas
 def _asr_by_strategy(results) -> dict:
     # Skipped runs (query budget exhausted) were never actually tested and
     # would silently deflate the ASR if counted as a denominator miss.
-    total, hits = defaultdict(int), defaultdict(int)
+    total: dict[str, int] = defaultdict(int)
+    hits: dict[str, int] = defaultdict(int)
     for r in results:
         if r.skipped:
             continue

@@ -20,6 +20,10 @@ def _cmd_scan(args):
     profile = scan.load_profile(args.profile)
     if args.fail_on:
         profile["fail_on"] = args.fail_on
+    # Apply --provider/--model before validating: otherwise a CLI override to
+    # e.g. anthropic wouldn't be visible to the preflight API-key check, which
+    # only sees whatever's already in the profile file's own provider blocks.
+    scan.apply_provider_override(profile, args.provider, args.model)
 
     problems = validate_mod.validate(profile)
     if problems:

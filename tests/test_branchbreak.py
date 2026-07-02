@@ -4,6 +4,7 @@ scoring/gating, and ATLAS coverage. Run: pytest  OR  python tests/test_branchbre
 No network, no model — the mock provider and a few stubs stand in.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -245,6 +246,37 @@ def test_validate_catches_unknown_converter():
     assert any("not-real" in p for p in problems)
 
 
+def test_validate_catches_missing_anthropic_key():
+    saved = os.environ.pop("ANTHROPIC_API_KEY", None)
+    try:
+        profile = _mock_profile(attacker={"kind": "anthropic"})
+        problems = validate_mod.validate(profile)
+        assert any("ANTHROPIC_API_KEY" in p for p in problems)
+    finally:
+        if saved is not None:
+            os.environ["ANTHROPIC_API_KEY"] = saved
+
+
+def test_validate_accepts_anthropic_with_explicit_key():
+    profile = _mock_profile(attacker={"kind": "anthropic", "api_key": "sk-ant-test"})
+    problems = validate_mod.validate(profile)
+    assert not any("ANTHROPIC_API_KEY" in p for p in problems)
+
+
+def test_cli_override_visible_to_validate_before_scan():
+    # The bug this guards against: --provider anthropic wouldn't be visible
+    # to the preflight key check if the override was applied after validate.
+    saved = os.environ.pop("ANTHROPIC_API_KEY", None)
+    try:
+        profile = _mock_profile()  # ships with mock providers, no anthropic key needed
+        scan.apply_provider_override(profile, "anthropic", "claude-sonnet-5")
+        problems = validate_mod.validate(profile)
+        assert any("ANTHROPIC_API_KEY" in p for p in problems)
+    finally:
+        if saved is not None:
+            os.environ["ANTHROPIC_API_KEY"] = saved
+
+
 # --------------------------------- store ---------------------------------------
 
 def test_store_trend_reflects_saved_scans():
@@ -266,7 +298,7 @@ def test_store_export_csv_writes_all_tables(tmp_path=None):
     with tempfile.TemporaryDirectory() as d:
         paths = store.export_csv(conn, d)
         assert len(paths) == 3
-        assert all(__import__("os").path.exists(p) for p in paths)
+        assert all(os.path.exists(p) for p in paths)
 
 
 # --------------------------------- alert ----------------------------------------
