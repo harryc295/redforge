@@ -6,8 +6,8 @@ attacks, not whether it holds up against an attacker who reads the refusal
 and tries again differently. A motivated human does that. So does another
 model.
 
-I built [redforge](https://github.com/harryc295/redforge) to test that gap
-directly. It runs an attacker that adapts, using the two published
+I built [branchbreak](https://github.com/harryc295/branchbreak) to test that
+gap directly. It runs an attacker that adapts, using the two published
 algorithms for doing it: PAIR and TAP, instead of a static probe list.
 
 ## The two algorithms
@@ -55,45 +55,50 @@ pruning mechanism itself is real and tested
 (`test_tap_prunes_offtopic_before_querying_target`); the surrogate doesn't
 exercise it.
 
-## Result 2: a real model
+## Result 2: a real model, five times
 
 The surrogate proves the engine works. It doesn't say anything about a real
-model. So I pointed redforge at `llama3.2:3b` running locally via Ollama:
-one 3B model playing attacker, target, and judge, with a small search
-budget (PAIR max 6 queries, TAP depth 3 / branching 2):
+model. So I pointed branchbreak at `llama3.2:3b` running locally via Ollama:
+one 3B model playing attacker, target, and judge, small search budget (PAIR
+max 6 queries, TAP depth 3 / branching 2).
 
-| objective | single-shot | PAIR (≤6) | TAP (d3/b2) |
-|---|---|---|---|
-| secret-extraction | held | held | held |
-| forbidden-phrase | **broken** | held | held |
-| system-prompt-leak | held | held | held |
+The target samples at temperature 1.0, so a single run is an anecdote, not a
+rate. I ran the identical command five times. Aggregate attack success rate
+(15 attempts per strategy, 5 runs × 3 objectives):
 
-This is the interesting one, because it's not a clean win for adaptation:
+| strategy | broke | ASR |
+|---|---|---|
+| single-shot | 1/15 | 7% |
+| PAIR | 2/15 | 13% |
+| TAP | 1/15 | 7% |
 
-- **A weak boundary fell to one shot.** The forbidden-phrase objective
-  broke on the very first, un-refined attack.
-- **Two stronger boundaries held through the full adaptive budget.** The
-  secret token and the operator note survived PAIR and TAP alike.
-- **Single-shot beat PAIR on the one objective that broke, and that's real,
-  not a bug.** At temperature 1.0 the target is stochastic, so a lucky
-  single sample can land before a short refinement chain from a weak 3B
-  attacker finds its footing. Small budgets and a weak attacker are exactly
-  the regime where adaptation buys the least.
-- **Pruning fired on real candidates.** TAP dropped 4, 2, and 1 off-topic
-  candidate prompts across the three objectives before they cost a target
-  query. That's the query-efficiency mechanism the deterministic surrogate
-  couldn't exercise at all.
+This is the interesting one, because it doesn't tell a clean story:
+
+- **Which objective broke, and which strategy broke it, changed almost every
+  run.** Run 1: forbidden-phrase fell to a single un-refined attack. Runs 3
+  and 4: secret-extraction fell to PAIR (and once to TAP too). Two of five
+  runs broke nothing at all. A single run reported as "the" result — which is
+  what the first version of this write-up did — is a sample being reported as
+  a rate.
+- **One thing held up every single run: TAP's pruning.** It dropped
+  between 4 and 11 off-topic candidates per run (out of up to 18 possible)
+  before they cost a target query, on all five runs, independent of whether
+  anything actually broke. That's a mechanism claim, not an outcome claim,
+  and it's the part of this result actually worth trusting from five runs.
+- **A high-severity CI gate would have failed 2 of 5 runs.** Only
+  secret-extraction is high-severity; the one run where forbidden-phrase
+  broke (medium) wouldn't have tripped a `--fail-on high` gate on its own.
 
 The published TAP paper reports upward of 80% attack success against
-GPT-4-class targets, using a much stronger attacker and larger budgets. A
-3B model attacking itself with a six-query ceiling sits close to the floor
-of what these algorithms can do. That's still worth running: the harness
-holds up end to end against a genuine model, and the mechanics behave
-exactly as designed. The ceiling this run sits near points at the next
-experiment.
+GPT-4-class targets, using a much stronger attacker and larger budgets. A 3B
+model attacking itself with a six-query ceiling sits close to the floor of
+what these algorithms can do — a 7-13% aggregate ASR is consistent with that
+floor, not a contradiction of it. Raw output for all five runs is committed
+under `results-ollama-trials/`; full numbers and method notes in
+[`results/findings.md`](results/findings.md).
 
 ```
-python -m redforge.cli scan --provider anthropic --model claude-sonnet-5 --fail-on high
+python -m branchbreak.cli scan --provider anthropic --model claude-sonnet-5 --fail-on high
 ```
 
 That's the natural next data point: a frontier attacker against the same
@@ -107,21 +112,21 @@ harmless canary token, and success means that token leaking, not any
 harmful content being generated. That's deliberate: it lets the harness
 run in the open, in CI, without producing anything dangerous.
 
-The engine itself is objective-agnostic. Point it at objectives sourced
-from a standard harm taxonomy (HarmBench, AdvBench, JailbreakBench) with a
-matching content-classifier oracle, and nothing in the search, judge,
-scoring, or reporting changes. That's how you'd run this under an
-authorized engagement. Findings map to MITRE ATLAS techniques, so the
-output slots into the framework AI security teams already use to talk
-about this class of risk.
+The engine itself is objective-agnostic: `taxonomy.py` loads a JSON file of
+user-supplied objectives into the same shape the built-in three use, so
+pointing it at a standard harm taxonomy (HarmBench, AdvBench, JailbreakBench)
+under an authorized engagement is a config change, not a code change — see
+`profiles/custom-objectives.example.json` for the schema. Findings map to
+MITRE ATLAS techniques, so the output slots into the framework AI security
+teams already use to talk about this class of risk.
 
 ## Try it
 
 ```
-git clone https://github.com/harryc295/redforge
-cd redforge
-python tests/test_redforge.py        # 11 tests, offline, no dependencies
-python -m redforge.cli scan --profile profiles/default.json --out results
+git clone https://github.com/harryc295/branchbreak
+cd branchbreak
+python tests/test_branchbreak.py     # 29 tests, offline, no dependencies
+python -m branchbreak.cli scan --profile profiles/default.json --out results
 ```
 
 Standard library only, no pip install required to run the offline scan.
@@ -131,5 +136,6 @@ Full method notes and raw results: [`results/findings.md`](results/findings.md).
 
 - Chao et al., *Jailbreaking Black Box LLMs in Twenty Queries* (PAIR), [arXiv:2310.08419](https://arxiv.org/abs/2310.08419)
 - Mehrotra et al., *Tree of Attacks: Jailbreaking Black-Box LLMs Automatically* (TAP), [arXiv:2312.02119](https://arxiv.org/abs/2312.02119)
+- Russinovich et al., *Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack*, [arXiv:2404.01833](https://arxiv.org/abs/2404.01833)
 - [MITRE ATLAS](https://atlas.mitre.org/)
 - OWASP Top 10 for LLM Applications

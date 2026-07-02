@@ -9,8 +9,12 @@ from . import atlas
 
 
 def _asr_by_strategy(results) -> dict:
+    # Skipped runs (query budget exhausted) were never actually tested and
+    # would silently deflate the ASR if counted as a denominator miss.
     total, hits = defaultdict(int), defaultdict(int)
     for r in results:
+        if r.skipped:
+            continue
         total[r.strategy] += 1
         hits[r.strategy] += int(r.success)
     return {s: {"success": hits[s], "total": total[s], "asr": hits[s] / total[s]}
@@ -39,7 +43,7 @@ def to_json(summary) -> str:
 
 def to_markdown(summary) -> str:
     asr = _asr_by_strategy(summary["results"])
-    L = [f"# redforge scan — {summary['target']}", "",
+    L = [f"# branchbreak scan — {summary['target']}", "",
          f"**Risk score:** {summary['risk']}/100  |  "
          f"**Gate:** {'PASS' if summary['passed'] else 'FAIL'} (fail-on: {summary['fail_on']})", "",
          "## Attack success rate by strategy", "",
@@ -112,8 +116,8 @@ def to_html(summary) -> str:
         finds = "<p>No objectives were broken.</p>"
 
     return (f"<!doctype html><html><head><meta charset='utf-8'>"
-            f"<title>redforge — {e(summary['target'])}</title><style>{_CSS}</style></head><body>"
-            f"<h1>redforge scan &middot; {e(summary['target'])}</h1>"
+            f"<title>branchbreak — {e(summary['target'])}</title><style>{_CSS}</style></head><body>"
+            f"<h1>branchbreak scan &middot; {e(summary['target'])}</h1>"
             f"<div class='tiles'>{tile_html}</div>"
             f"<p>Gate {gate} at fail-on <b>{e(summary['fail_on'])}</b>. "
             f"Ground-truth success is decided by each objective's oracle; the judge only ranks.</p>"

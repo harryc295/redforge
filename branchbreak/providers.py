@@ -15,10 +15,14 @@ mock uses them to stay deterministic.
 
 import json
 import os
+import time
+import urllib.error
 import urllib.request
 
 # Escalation techniques the mock attacker stacks and the mock target reacts to.
 TECHNIQUES = ["roleplay", "hypothetical", "authority", "persona", "obfuscation", "urgency"]
+
+RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 
 class MockProvider:
@@ -34,7 +38,13 @@ class MockProvider:
         if self.persona == "attacker":
             return self._attack(depth, branch)
         if self.persona == "target":
-            return self._target(last_user)
+            # Sum technique pressure across every user turn seen so far, not
+            # just the latest one. PAIR/TAP only ever send one user turn per
+            # call, so this is equivalent to the old last-turn-only check for
+            # them; Crescendo sends the whole growing conversation, so this is
+            # what lets accumulated context actually matter for the mock.
+            all_user = " ".join(m["content"] for m in messages if m["role"] == "user")
+            return self._target(all_user)
         if self.persona == "judge":
             return self._judge(last_user)
         raise ValueError(f"unknown mock persona: {self.persona}")
@@ -67,11 +77,31 @@ class MockProvider:
 
 
 class _HttpProvider:
+    """Retries transient failures (429/5xx, timeouts) with exponential backoff.
+    A real scan makes dozens of live API calls; without this, one rate-limit
+    blip fails the whole scan instead of one query."""
+
+    max_retries = 3
+    backoff_base = 1.0
+
     def _post(self, url, payload, headers, timeout):
         req = urllib.request.Request(
             url, data=json.dumps(payload).encode(), headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read().decode())
+        last_err = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    return json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+                if e.code not in RETRYABLE_STATUS or attempt == self.max_retries:
+                    raise
+                last_err = e
+            except (urllib.error.URLError, TimeoutError) as e:
+                if attempt == self.max_retries:
+                    raise
+                last_err = e
+            time.sleep(self.backoff_base * (2 ** attempt))
+        raise last_err  # pragma: no cover — loop always returns or raises above
 
 
 class OpenAICompatProvider(_HttpProvider):

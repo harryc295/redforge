@@ -8,7 +8,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python tests/test_redforge.py
+      - run: python tests/test_branchbreak.py
       # Prove the scanner runs end to end. fail-on critical keeps the demo's
       # (high/medium) findings from failing our own build.
-      - run: python -m redforge.cli scan --profile profiles/default.json --out results --db "" --fail-on critical
+      - run: python -m branchbreak.cli scan --profile profiles/default.json --out results --db "" --fail-on critical

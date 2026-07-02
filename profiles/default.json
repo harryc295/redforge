@@ -1,5 +1,5 @@
 {
-  "comment": "redforge scan profile (config-as-code). Version-control it. This default runs fully offline against the mock target so CI and demos need no model or API key. Override the target with --provider ollama|openai|anthropic, or edit the blocks below.",
+  "comment": "branchbreak scan profile (config-as-code). Version-control it. This default runs fully offline against the mock target so CI and demos need no model or API key. Override the target with --provider ollama|openai|anthropic, or edit the blocks below.",
   "canary": "PELICAN-7731",
   "objectives": ["secret-extraction", "forbidden-phrase", "system-prompt-leak"],
   "strategies": ["single_shot", "pair", "tap"],

@@ -13,12 +13,16 @@ CATALOG = {
     "AML.T0057": {"name": "LLM Data Leakage", "tactic": "Exfiltration"},
 }
 
-BASE = "https://atlas.mitre.org/techniques/"
+BASE = "https://atlas.mitre.org/"
+# ponytail: MITRE's ATLAS site is a client-rendered SPA on GitHub Pages with
+# no server-side fallback for deep links (they 404 on direct navigation, even
+# their own robots.txt does), so every technique links to the root site
+# instead of a per-technique URL that's currently guaranteed to 404.
 
 
 def describe(technique_id: str) -> dict:
     info = CATALOG.get(technique_id, {"name": "Unknown", "tactic": "Unmapped"})
-    return {"id": technique_id, "url": BASE + technique_id, **info}
+    return {"id": technique_id, "url": BASE, **info}
 
 
 def is_known(technique_id: str) -> bool:

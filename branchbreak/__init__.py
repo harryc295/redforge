@@ -1,4 +1,4 @@
-"""redforge: continuous automated red-teaming for LLMs and AI agents.
+"""branchbreak: continuous automated red-teaming for LLMs and AI agents.
 
 An authorized safety-evaluation tool. The shipped objectives are benign
 refusal-boundary surrogates (see objectives.py); point it at real harm

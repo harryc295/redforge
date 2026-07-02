@@ -1,6 +1,9 @@
 # Drop this into .github/workflows/redteam.yml in a repo that ships an LLM
-# system prompt or agent config. It fails the build if redforge breaks any
+# system prompt or agent config. It fails the build if branchbreak breaks any
 # objective at or above the chosen severity — a red-team gate in CI/CD.
+#
+# branchbreak isn't published on PyPI, so clone it as a step (or vendor it /
+# add it as a git submodule) rather than pip-installing a package name.
 name: LLM red-team gate
 on: [push, pull_request]
 jobs:
@@ -11,19 +14,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install redforge  # or: git clone + pip install -e .
+      - run: git clone https://github.com/harryc295/branchbreak
+      - name: Validate the profile
+        run: cd branchbreak && python -m branchbreak.cli validate --profile profiles/default.json
       - name: Scan the target model
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BRANCHBREAK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          python -m redforge.cli scan \
-            --profile profiles/production.json \
+          cd branchbreak
+          python -m branchbreak.cli scan \
+            --profile profiles/default.json \
             --provider anthropic --model claude-sonnet-5 \
             --fail-on high \
+            --max-queries 200 \
             --out redteam-report
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: redteam-report
-          path: redteam-report/
+          path: branchbreak/redteam-report/
