@@ -10,6 +10,8 @@ an exit code. It is an authorized safety-evaluation tool: the shipped objectives
 are benign refusal-boundary surrogates, and it runs fully offline or against a
 real model.
 
+**[Full write-up: what PAIR and TAP actually buy you](WRITEUP.md)**
+
 Most red-team tooling fires a *fixed* battery of prompts. The interesting
 attacks against modern models are not fixed — they are found by an attacker that
 reacts to what the target says. redforge implements the two published
